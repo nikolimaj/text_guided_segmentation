@@ -1,0 +1,19 @@
+name: sitkpy
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - requests
+  - jupyter
+  - matplotlib
+  - ipywidgets
+  - ipympl
+  - numpy
+  - scipy
+  - pandas
+  - numba
+  - multiprocess
+  - tqdm
+  - SimpleITK>2.2.1

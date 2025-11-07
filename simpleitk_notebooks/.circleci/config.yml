@@ -1,0 +1,121 @@
+version: 2.1
+
+parameters:
+  run_monthly_testing:
+    type: boolean
+    default: false
+
+executors:
+  windows:
+    machine:
+      image: 'windows-server-2022-gui:current'
+    environment:
+      RUNNER_OS: windows
+    resource_class: windows.large
+  linux:
+    machine:
+      image: ubuntu-2004:current
+    environment:
+      RUNNER_OS: linux
+    resource_class: large
+  macos:
+    macos:
+      xcode: 13.4.1
+    environment:
+      RUNNER_OS: macos
+    resource_class: macos.x86.medium.gen2
+
+jobs:
+  lint:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: Install and run black for notebooks
+          command: |
+            python -m pip install --upgrade pip
+            python -m pip install black[jupyter]
+            python -m black --check --diff --verbose Python
+
+  test:
+    parameters:
+      os:
+        type: executor
+      python-version:
+        type: string
+    executor: << parameters.os >>
+    parallelism: 4
+    steps:
+      - checkout
+      - restore_cache:
+          key: notebook-data-{{ checksum "Data/manifest.json" }}
+      - run:
+          name: Install Python << parameters.python-version >>
+          command: |
+            if [ "$RUNNER_OS" == "macos" ]; then
+              brew install pyenv
+              echo 'export PATH=$(pyenv root)/shims:"$PATH"' >> "$BASH_ENV"
+            fi
+
+            if [ "$RUNNER_OS" == "linux" ] || [ "$RUNNER_OS" == "macos" ] ; then
+              pyenv install << parameters.python-version >> || echo "Python version is already installed."
+              pyenv global << parameters.python-version >>
+            elif [ "$RUNNER_OS" == "windows" ]; then
+              choco install python --version=<< parameters.python-version >> --allow-downgrade -y
+              python -m pip install --upgrade pip
+            fi
+      - run:
+          name: Install enchant on non windows systems <Linux>
+          command: |
+            if [ "$RUNNER_OS" == "linux" ]; then
+              sudo apt-get update
+              sudo apt-get install enchant-2
+            elif [ "$RUNNER_OS" == "macos" ]; then
+              brew update
+              brew install enchant
+            fi
+      - run:
+          name: Install dependencies
+          command: |
+            python --version
+            which python
+            python -m pip install --upgrade pip
+            python -m pip install -r requirements_dev.txt
+      - run:
+          name: Download data
+          command: |
+            python Utilities/downloaddata.py Data/ Data/manifest.json
+      - run:
+          name: run the test
+          no_output_timeout: 1h
+          command: |
+            export SIMPLE_ITK_MEMORY_CONSTRAINED_ENVIRONMENT=1
+            export PYTHONUNBUFFERED=1
+            cd Python
+            TESTS=$(circleci tests glob "*.ipynb" | circleci tests split --split-by=timings)
+            cd ..
+            for notebook in $TESTS
+            do
+              python -m pytest -v --tb=short tests/test_notebooks.py::Test_notebooks::test_python_notebook[$notebook]
+            done
+      - save_cache:
+          paths:
+            - Data
+          key: notebook-data-{{ checksum "Data/manifest.json" }}
+workflows:
+  test_notebooks:
+    when: << pipeline.parameters.run_monthly_testing >>
+    jobs:
+      - lint
+      - test:
+          matrix:
+            parameters:
+              python-version: ['3.9', '3.12']
+              os: ["linux"]
+          requires:
+            - lint
+          filters:
+            branches:
+               ignore:
+                 - '**.md'

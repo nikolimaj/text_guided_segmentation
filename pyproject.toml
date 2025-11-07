@@ -1,0 +1,21 @@
+[project]
+name = "text-guided-segmentation"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "mnikolic",email = "maja.nikolic@risc-software.at"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "simpleitk (>=2.5.2,<3.0.0)",
+    "jupyter (>=1.1.1,<2.0.0)",
+    "setuptools (>=80.9.0,<81.0.0)",
+    "tensorboardx (>=2.6.4,<3.0.0)",
+    "matplotlib (>=3.10.7,<4.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

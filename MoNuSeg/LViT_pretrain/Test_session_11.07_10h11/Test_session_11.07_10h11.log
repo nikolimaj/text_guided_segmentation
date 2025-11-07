@@ -1,0 +1,4 @@
+LViT_pretrain
+transformer head num: 4
+transformer layers num: 4
+transformer expand ratio: 4
