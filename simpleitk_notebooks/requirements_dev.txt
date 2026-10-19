@@ -1,7 +1,0 @@
-black[jupyter]
-pytest
-markdown
-lxml
-pyenchant
-ipython<=8.12
--rPython/requirements.txt
